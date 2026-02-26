@@ -60,6 +60,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: t('settings_title') || 'Settings' }} />
         <Stack.Screen name="details" options={{ title: t('details') || 'Details' }} />
+        <Stack.Screen name="add-product" options={{ title: t('add_product') }} />
       </Stack>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>

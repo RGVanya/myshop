@@ -19,7 +19,7 @@ export default function SettingsScreen() {
 
             <ScrollView contentContainerStyle={styles.container}>
 
-                <ThemedText type="title">DEBUG: {i18n.language}</ThemedText>
+
 
                 {/* БЛОК ТЕМЫ */}
                 <View style={styles.section}>
