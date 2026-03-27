@@ -4,15 +4,14 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { View } from 'react-native';
-
-
-import { CustomThemeProvider, useAppTheme } from '@/hooks/ThemeContext';
-import { initDatabase } from '../src/db/database';
-import '../i18n/i18n';
 import { useTranslation } from 'react-i18next';
 
+import { CustomThemeProvider, useAppTheme } from '@/hooks/ThemeContext';
+import { NetworkProvider } from '@/src/context/NetworkContext';
+import { DatabaseService } from '@/src/services/DatabaseService';
+import '../i18n/i18n';
 
-SplashScreen.preventAutoHideAsync().catch(() => { });
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const [appIsReady, setAppIsReady] = useState(false);
@@ -20,32 +19,26 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
-
-        initDatabase();
-
-
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        DatabaseService.init();
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (e) {
-        console.warn("Ошибка инициализации:", e);
+        console.warn('Init error:', e);
       } finally {
-
         setAppIsReady(true);
       }
     }
-
     prepare();
   }, []);
 
-
-  if (!appIsReady) {
-    return null;
-  }
+  if (!appIsReady) return null;
 
   return (
     <CustomThemeProvider>
-      <View style={{ flex: 1 }} onLayout={() => SplashScreen.hideAsync()}>
-        <RootLayoutNav />
-      </View>
+      <NetworkProvider>
+        <View style={{ flex: 1 }} onLayout={() => SplashScreen.hideAsync()}>
+          <RootLayoutNav />
+        </View>
+      </NetworkProvider>
     </CustomThemeProvider>
   );
 }
@@ -54,13 +47,23 @@ function RootLayoutNav() {
   const { theme } = useAppTheme();
   const { t } = useTranslation();
 
+  const navTheme = theme === 'dark'
+    ? { ...DarkTheme, colors: { ...DarkTheme.colors, background: '#0F172A', card: '#1E293B', primary: '#3B82F6' } }
+    : { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: '#F0F4F8', card: '#FFFFFF', primary: '#2563EB' } };
+
   return (
-    <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <ThemeProvider value={navTheme}>
+      <Stack
+        screenOptions={{
+          headerShadowVisible: false,
+          headerTitleStyle: { fontWeight: '700' },
+        }}
+      >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="settings" options={{ title: t('settings_title') || 'Settings' }} />
-        <Stack.Screen name="details" options={{ title: t('details') || 'Details' }} />
-        <Stack.Screen name="add-product" options={{ title: t('add_product') }} />
+        <Stack.Screen name="settings" options={{ title: t('settings_title'), presentation: 'card' }} />
+        <Stack.Screen name="details" options={{ title: t('edit_product'), presentation: 'card' }} />
+        <Stack.Screen name="add-product" options={{ title: t('add_product'), presentation: 'card' }} />
+        <Stack.Screen name="catalog-detail" options={{ title: t('product_detail'), presentation: 'card' }} />
       </Stack>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>

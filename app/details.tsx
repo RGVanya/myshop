@@ -1,104 +1,201 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View, ScrollView } from 'react-native';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { updateProduct } from '../src/db/database';
-import { useTranslation } from 'react-i18next';
-import * as ImagePicker from 'expo-image-picker';
+import React from 'react';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
 import { Image } from 'expo-image';
+import { useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
+
+import { ThemedText } from '@/components/themed-text';
+import { useAppTheme } from '@/hooks/ThemeContext';
+import { Colors, BorderRadius, Shadows } from '@/constants/theme';
+import { useProductFormViewModel } from '@/src/viewmodels/useProductFormViewModel';
 
 export default function DetailsScreen() {
-    const item = useLocalSearchParams();
-    const router = useRouter();
-    const { t } = useTranslation();
+  const item = useLocalSearchParams();
+  const { t } = useTranslation();
+  const { theme } = useAppTheme();
+  const colors = Colors[theme];
 
+  const vm = useProductFormViewModel({
+    id: Number(item.id),
+    title: item.title as string,
+    description: item.description as string,
+    price: (Number(item.price) / 100).toString(),
+    imageUri: (item.imageUri as string) || null,
+  });
 
-    const [title, setTitle] = useState(item.title as string);
-    const [desc, setDesc] = useState(item.description as string);
-    const [price, setPrice] = useState((Number(item.price) / 100).toString());
-    const [image, setImage] = useState<string | null>(item.imageUri as string || null);
-
-    const pickImage = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.5,
-        });
-        if (!result.canceled) {
-            setImage(result.assets[0].uri);
-        }
-    };
-
-    const handleUpdate = () => {
-        const priceInCents = Math.round(parseFloat(price.replace(',', '.')) * 100);
-        updateProduct(Number(item.id), title, desc, priceInCents, image);
-        router.back();
-    };
-
-    return (
-        <ThemedView style={{ flex: 1 }}>
-            <ScrollView contentContainerStyle={styles.container}>
-                <ThemedText type="title">{t('details')}</ThemedText>
-
-                {/* Выбор/смена картинки */}
-                <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-                    {image ? (
-                        <Image source={{ uri: image }} style={styles.previewImage} />
-                    ) : (
-                        <ThemedText>+ {t('add_photo') || 'Add Photo'}</ThemedText>
-                    )}
-                </TouchableOpacity>
-
-                <View style={styles.editForm}>
-                    <ThemedText>{t('name_label')}:</ThemedText>
-                    <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholderTextColor="#888" />
-
-                    <ThemedText>{t('desc_label')}:</ThemedText>
-                    <TextInput style={styles.input} value={desc} onChangeText={setDesc} placeholderTextColor="#888" />
-
-                    <ThemedText>{t('price_label')}:</ThemedText>
-                    <TextInput style={styles.input} value={price} onChangeText={setPrice} keyboardType="numeric" placeholderTextColor="#888" />
-
-                    <TouchableOpacity style={styles.saveBtn} onPress={handleUpdate}>
-                        <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>OK / SAVE</ThemedText>
-                    </TouchableOpacity>
+  return (
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={100}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+            <TouchableOpacity
+              style={[styles.imagePicker, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={vm.pickImage}
+            >
+              {vm.image ? (
+                <Image source={{ uri: vm.image }} style={styles.previewImage} contentFit="cover" />
+              ) : (
+                <View style={styles.placeholderContent}>
+                  <Ionicons name="camera-outline" size={36} color={colors.textSecondary} />
+                  <ThemedText style={{ color: colors.textSecondary, marginTop: 8 }}>
+                    {t('add_photo')}
+                  </ThemedText>
                 </View>
-            </ScrollView>
-        </ThemedView>
-    );
+              )}
+              {vm.image && (
+                <View style={[styles.changePhotoBtn, { backgroundColor: colors.primary }]}>
+                  <Ionicons name="camera-outline" size={16} color="#FFF" />
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <View style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, Shadows.sm]}>
+              <View style={styles.field}>
+                <ThemedText style={[styles.label, { color: colors.textSecondary }]}>
+                  {t('name_label')}
+                </ThemedText>
+                <TextInput
+                  style={[styles.input, { color: colors.text, borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }]}
+                  value={vm.title}
+                  onChangeText={vm.setTitle}
+                  placeholderTextColor={colors.textSecondary}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <ThemedText style={[styles.label, { color: colors.textSecondary }]}>
+                  {t('desc_label')}
+                </ThemedText>
+                <TextInput
+                  style={[styles.input, styles.multiline, { color: colors.text, borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }]}
+                  value={vm.description}
+                  onChangeText={vm.setDescription}
+                  placeholderTextColor={colors.textSecondary}
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <ThemedText style={[styles.label, { color: colors.textSecondary }]}>
+                  {t('price_label')} (₽)
+                </ThemedText>
+                <TextInput
+                  style={[styles.input, { color: colors.text, borderColor: colors.inputBorder, backgroundColor: colors.inputBackground }]}
+                  value={vm.price}
+                  onChangeText={vm.setPrice}
+                  keyboardType="numeric"
+                  placeholderTextColor={colors.textSecondary}
+                  returnKeyType="done"
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.saveBtn, { backgroundColor: colors.primary }, Shadows.md]}
+              onPress={() => vm.save(t)}
+              disabled={vm.saving}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="checkmark" size={20} color="#FFF" />
+              <ThemedText style={styles.saveBtnText}>{t('save')}</ThemedText>
+            </TouchableOpacity>
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { padding: 20, paddingTop: 20 },
-    imagePicker: {
-        height: 200,
-        backgroundColor: 'rgba(150,150,150,0.1)',
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginVertical: 20,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderStyle: 'dashed'
-    },
-    previewImage: { width: '100%', height: '100%' },
-    editForm: { marginTop: 10 },
-    input: {
-        borderBottomWidth: 1,
-        borderBottomColor: '#0a7ea4',
-        marginBottom: 20,
-        fontSize: 18,
-        padding: 8,
-        color: '#888'
-    },
-    saveBtn: {
-        backgroundColor: '#28a745',
-        padding: 15,
-        borderRadius: 10,
-        alignItems: 'center',
-        marginTop: 20
-    }
+  screen: {
+    flex: 1,
+  },
+  container: {
+    padding: 20,
+  },
+  imagePicker: {
+    height: 200,
+    borderRadius: BorderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    marginBottom: 20,
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholderContent: {
+    alignItems: 'center',
+  },
+  changePhotoBtn: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  formCard: {
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 20,
+  },
+  field: {
+    marginBottom: 18,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
+  multiline: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: BorderRadius.md,
+  },
+  saveBtnText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 16,
+  },
 });
