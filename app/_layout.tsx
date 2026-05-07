@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { CustomThemeProvider, useAppTheme } from '@/hooks/ThemeContext';
 import { NetworkProvider } from '@/src/context/NetworkContext';
 import { DatabaseService } from '@/src/services/DatabaseService';
+import { scheduleLabNotifications } from '@/src/services/notificationService';
 import '../i18n/i18n';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -20,6 +21,7 @@ export default function RootLayout() {
     async function prepare() {
       try {
         DatabaseService.init();
+        await scheduleLabNotifications();
         await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (e) {
         console.warn('Init error:', e);

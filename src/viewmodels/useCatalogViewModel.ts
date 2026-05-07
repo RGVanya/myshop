@@ -1,19 +1,41 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Fuse from 'fuse.js';
 import { ApiService } from '../services/ApiService';
 import { CacheService } from '../services/CacheService';
 import { useNetwork } from '../context/NetworkContext';
 import type { ApiProduct } from '../models/types';
 import type { ElectronicsCategory } from '@/constants/theme';
 
+export type CatalogSortId = 'default' | 'price_asc' | 'price_desc' | 'rating_desc' | 'title';
+
+function sortCatalog(list: ApiProduct[], sortBy: CatalogSortId): ApiProduct[] {
+  const next = [...list];
+  switch (sortBy) {
+    case 'price_asc':
+      return next.sort((a, b) => a.price - b.price);
+    case 'price_desc':
+      return next.sort((a, b) => b.price - a.price);
+    case 'rating_desc':
+      return next.sort((a, b) => b.rating - a.rating);
+    case 'title':
+      return next.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+    case 'default':
+    default:
+      return next;
+  }
+}
+
 export function useCatalogViewModel() {
   const { isOnline } = useNetwork();
-  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [rawProducts, setRawProducts] = useState<ApiProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState<ElectronicsCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<CatalogSortId>('default');
   const [isFromCache, setIsFromCache] = useState(false);
+
   const loadProducts = useCallback(
     async (showLoader = true) => {
       if (showLoader) setLoading(true);
@@ -22,31 +44,25 @@ export function useCatalogViewModel() {
       try {
         let data: ApiProduct[];
 
-        if (searchQuery.trim()) {
-          const res = await ApiService.searchProducts(searchQuery.trim());
-          data = res.products.filter((p) =>
-            ['smartphones', 'laptops', 'tablets', 'mobile-accessories'].includes(p.category)
-          );
-        } else if (category === 'all') {
+        if (category === 'all') {
           data = await ApiService.fetchAllElectronics();
         } else {
           const res = await ApiService.fetchProductsByCategory(category);
           data = res.products;
         }
 
-        setProducts(data);
+        setRawProducts(data);
         setIsFromCache(false);
 
-        const cacheKey = searchQuery.trim() || category;
+        const cacheKey = category === 'all' ? 'all' : category;
         CacheService.saveProducts(data, cacheKey);
       } catch {
-        const cacheKey = searchQuery.trim() || category;
-        const cached = cacheKey === 'all'
-          ? CacheService.getAllProducts()
-          : CacheService.getProducts(cacheKey);
+        const cacheKey = category === 'all' ? 'all' : category;
+        const cached =
+          cacheKey === 'all' ? CacheService.getAllProducts() : CacheService.getProducts(cacheKey);
 
         if (cached.length > 0) {
-          setProducts(cached);
+          setRawProducts(cached);
           setIsFromCache(true);
         } else {
           setError('load_error');
@@ -56,12 +72,28 @@ export function useCatalogViewModel() {
         setRefreshing(false);
       }
     },
-    [category, searchQuery]
+    [category]
   );
 
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  const fuse = useMemo(
+    () =>
+      new Fuse(rawProducts, {
+        keys: ['title', 'description', 'brand', 'category'],
+        threshold: 0.38,
+        ignoreLocation: true,
+      }),
+    [rawProducts]
+  );
+
+  const products = useMemo(() => {
+    const q = searchQuery.trim();
+    const matched = q ? fuse.search(q).map((r) => r.item) : rawProducts;
+    return sortCatalog(matched, sortBy);
+  }, [rawProducts, searchQuery, fuse, sortBy]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -80,6 +112,8 @@ export function useCatalogViewModel() {
     error,
     category,
     searchQuery,
+    sortBy,
+    setSortBy,
     isFromCache,
     isOnline,
     onRefresh,

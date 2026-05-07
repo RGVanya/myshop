@@ -5,10 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from './themed-text';
 import { useAppTheme } from '@/hooks/ThemeContext';
 import { Colors, BorderRadius, Shadows } from '@/constants/theme';
-import type { LocalProduct } from '@/src/models/types';
+import type { ListedProduct } from '@/src/models/types';
 
 interface ProductCardProps {
-  product: LocalProduct;
+  product: ListedProduct;
   onPress: () => void;
   onDelete: () => void;
 }

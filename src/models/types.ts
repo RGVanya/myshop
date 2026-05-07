@@ -7,6 +7,19 @@ export interface LocalProduct {
   createdAt: string;
 }
 
+/** Элемент списка «Мои товары» (SQLite или Firestore). */
+export interface ListedProduct {
+  listKey: string;
+  backend: 'sqlite' | 'firestore';
+  sqliteRowId?: number;
+  firestoreId?: string;
+  title: string;
+  description: string;
+  price: number;
+  imageUri: string | null;
+  createdAt: string;
+}
+
 export interface ApiProduct {
   id: number;
   title: string;

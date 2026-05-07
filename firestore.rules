@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Только для учебной сборки. Для продакшена замените на auth != null и проверку uid.
+    match /myshop_products/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

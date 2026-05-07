@@ -105,7 +105,7 @@ export default function AddProductScreen() {
 
             <TouchableOpacity
               style={[styles.saveBtn, { backgroundColor: colors.primary }, Shadows.md]}
-              onPress={() => vm.save(t)}
+              onPress={() => void vm.save(t)}
               disabled={vm.saving}
               activeOpacity={0.8}
             >

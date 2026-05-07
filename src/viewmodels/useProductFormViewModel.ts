@@ -3,9 +3,12 @@ import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { DatabaseService } from '../services/DatabaseService';
+import { FirebaseProductService } from '../services/FirebaseProductService';
 
 interface InitialValues {
-  id?: number;
+  backend?: 'sqlite' | 'firestore';
+  sqliteRowId?: number;
+  firestoreId?: string;
   title?: string;
   description?: string;
   price?: string;
@@ -20,7 +23,7 @@ export function useProductFormViewModel(initial: InitialValues = {}) {
   const [image, setImage] = useState<string | null>(initial.imageUri ?? null);
   const [saving, setSaving] = useState(false);
 
-  const isEdit = initial.id != null;
+  const isEdit = initial.sqliteRowId != null || Boolean(initial.firestoreId);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -47,19 +50,61 @@ export function useProductFormViewModel(initial: InitialValues = {}) {
     return true;
   };
 
-  const save = (t: (key: string) => string) => {
+  const save = async (t: (key: string) => string) => {
     if (!validate(t)) return;
     setSaving(true);
     const priceInCents = Math.round(parseFloat(price.replace(',', '.')) * 100);
 
-    if (isEdit && initial.id != null) {
-      DatabaseService.updateProduct(initial.id, title.trim(), description.trim(), priceInCents, image);
-    } else {
-      DatabaseService.addProduct(title.trim(), description.trim(), priceInCents, image);
-    }
+    try {
+      const cloud = FirebaseProductService.isConfigured();
 
-    setSaving(false);
-    router.back();
+      if (cloud) {
+        if (initial.firestoreId) {
+          await FirebaseProductService.upsert({
+            firestoreId: initial.firestoreId,
+            title: title.trim(),
+            description: description.trim(),
+            price: priceInCents,
+            imageUri: image,
+          });
+        } else if (initial.sqliteRowId != null) {
+          DatabaseService.updateProduct(
+            initial.sqliteRowId,
+            title.trim(),
+            description.trim(),
+            priceInCents,
+            image
+          );
+        } else {
+          await FirebaseProductService.upsert({
+            title: title.trim(),
+            description: description.trim(),
+            price: priceInCents,
+            imageUri: image,
+          });
+        }
+      } else if (initial.sqliteRowId != null) {
+        DatabaseService.updateProduct(
+          initial.sqliteRowId,
+          title.trim(),
+          description.trim(),
+          priceInCents,
+          image
+        );
+      } else {
+        DatabaseService.addProduct(title.trim(), description.trim(), priceInCents, image);
+      }
+
+      router.back();
+    } catch (e) {
+      console.warn(e);
+      const msg = e instanceof Error ? e.message : '';
+      const body =
+        msg.includes('IMAGE_TOO_LARGE') ? t('image_too_large_firestore') : t('save_cloud_error');
+      Alert.alert(t('error') || 'Error', body || 'Could not save');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return {

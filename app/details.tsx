@@ -26,11 +26,29 @@ export default function DetailsScreen() {
   const { theme } = useAppTheme();
   const colors = Colors[theme];
 
+  const backend =
+    item.backend === 'firestore' || item.backend === 'sqlite'
+      ? item.backend
+      : 'sqlite';
+  const sqliteRowId =
+    item.sqliteRowId != null && String(item.sqliteRowId).length > 0
+      ? Number(item.sqliteRowId)
+      : undefined;
+  const firestoreId =
+    item.firestoreId != null && String(item.firestoreId).length > 0
+      ? String(item.firestoreId)
+      : undefined;
+
   const vm = useProductFormViewModel({
-    id: Number(item.id),
-    title: item.title as string,
-    description: item.description as string,
-    price: (Number(item.price) / 100).toString(),
+    backend,
+    sqliteRowId,
+    firestoreId,
+    title: (item.title as string) ?? '',
+    description: (item.description as string) ?? '',
+    price:
+      item.price != null && String(item.price).length > 0
+        ? (Number(item.price) / 100).toString()
+        : '',
     imageUri: (item.imageUri as string) || null,
   });
 
@@ -108,7 +126,7 @@ export default function DetailsScreen() {
 
             <TouchableOpacity
               style={[styles.saveBtn, { backgroundColor: colors.primary }, Shadows.md]}
-              onPress={() => vm.save(t)}
+              onPress={() => void vm.save(t)}
               disabled={vm.saving}
               activeOpacity={0.8}
             >

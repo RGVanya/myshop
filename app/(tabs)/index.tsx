@@ -17,9 +17,10 @@ import { NetworkBanner } from '@/components/NetworkBanner';
 import { SearchBar } from '@/components/SearchBar';
 import { CategoryFilter } from '@/components/CategoryFilter';
 import { CatalogCard } from '@/components/CatalogCard';
+import { SortChips } from '@/components/SortChips';
 import { useAppTheme } from '@/hooks/ThemeContext';
 import { Colors } from '@/constants/theme';
-import { useCatalogViewModel } from '@/src/viewmodels/useCatalogViewModel';
+import { useCatalogViewModel, type CatalogSortId } from '@/src/viewmodels/useCatalogViewModel';
 import type { ElectronicsCategory } from '@/constants/theme';
 
 export default function CatalogScreen() {
@@ -38,6 +39,14 @@ export default function CatalogScreen() {
     { key: 'mobile-accessories', label: t('accessories') },
   ];
 
+  const sortOptions: { key: CatalogSortId; label: string }[] = [
+    { key: 'default', label: t('sort_default') },
+    { key: 'price_asc', label: t('sort_price_asc') },
+    { key: 'price_desc', label: t('sort_price_desc') },
+    { key: 'rating_desc', label: t('sort_rating') },
+    { key: 'title', label: t('sort_title') },
+  ];
+
   const renderHeader = () => (
     <View>
       <SearchBar
@@ -45,6 +54,7 @@ export default function CatalogScreen() {
         onChangeText={vm.onSearch}
         placeholder={t('search_placeholder')}
       />
+      <SortChips options={sortOptions} value={vm.sortBy} onChange={vm.setSortBy} />
       <CategoryFilter
         selected={vm.category}
         onSelect={vm.onCategoryChange}

@@ -7,10 +7,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { SearchBar } from '@/components/SearchBar';
+import { SortChips } from '@/components/SortChips';
 import { ProductCard } from '@/components/ProductCard';
 import { useAppTheme } from '@/hooks/ThemeContext';
 import { Colors, Shadows, BorderRadius } from '@/constants/theme';
-import { useProductsViewModel } from '@/src/viewmodels/useProductsViewModel';
+import { useProductsViewModel, type MyProductsSortId } from '@/src/viewmodels/useProductsViewModel';
 
 export default function MyProductsScreen() {
   const router = useRouter();
@@ -19,6 +20,13 @@ export default function MyProductsScreen() {
   const colors = Colors[theme];
   const insets = useSafeAreaInsets();
   const vm = useProductsViewModel();
+
+  const sortOptions: { key: MyProductsSortId; label: string }[] = [
+    { key: 'created_desc', label: t('sort_date_desc') },
+    { key: 'price_asc', label: t('sort_price_asc') },
+    { key: 'price_desc', label: t('sort_price_desc') },
+    { key: 'title', label: t('sort_title') },
+  ];
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -30,6 +38,7 @@ export default function MyProductsScreen() {
           {vm.allCount > 0 && (
             <ThemedText style={[styles.count, { color: colors.textSecondary }]}>
               {vm.allCount} {t('items')}
+              {vm.usesCloud ? ` · ${t('cloud_firebase')}` : ''}
             </ThemedText>
           )}
         </View>
@@ -43,23 +52,40 @@ export default function MyProductsScreen() {
 
       <View style={styles.content}>
         {vm.allCount > 0 && (
-          <SearchBar
-            value={vm.searchQuery}
-            onChangeText={vm.setSearchQuery}
-            placeholder={t('search_my_products')}
-          />
+          <>
+            <SearchBar
+              value={vm.searchQuery}
+              onChangeText={vm.setSearchQuery}
+              placeholder={t('search_my_products')}
+            />
+            <SortChips options={sortOptions} value={vm.sortBy} onChange={vm.setSortBy} />
+          </>
         )}
 
         <FlatList
           data={vm.products}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.listKey}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <ProductCard
               product={item}
-              onPress={() => router.push({ pathname: '/details', params: item as any })}
-              onDelete={() => vm.deleteProduct(item.id, item.title, t)}
+              onPress={() =>
+                router.push({
+                  pathname: '/details',
+                  params: {
+                    backend: item.backend,
+                    sqliteRowId:
+                      item.sqliteRowId != null ? String(item.sqliteRowId) : '',
+                    firestoreId: item.firestoreId ?? '',
+                    title: item.title,
+                    description: item.description,
+                    price: String(item.price),
+                    imageUri: item.imageUri ?? '',
+                  },
+                } as any)
+              }
+              onDelete={() => vm.deleteProduct(item, t)}
             />
           )}
           ListEmptyComponent={
